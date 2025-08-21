@@ -1,0 +1,58 @@
+---
+
+- name: Executar comando em switches Cisco
+  hosts: switches
+  gather_facts: false
+
+
+  tasks:
+    # - name: Exibir a running-config
+    #   cisco.ios.ios_command:
+    #     commands: "show run"
+    #   register: show_run_output
+
+    # - name: Imprimir a saida
+    #   ansible.builtin.debug:
+    #     var: show_run_output.stdout_lines
+
+    - name: Get timestamp
+      ansible.builtin.command: date +%Y-%m-%d_%H-%M-%S
+      register: timestamp
+
+    - block:
+        - name: gather_facts
+          ansible.builtin.gather_facts:
+        - name: Display hostname and OS family
+          debug:
+            msg: "Hostname: {{ ansible_facts.net_hostname }}"
+      rescue:
+        - debug:
+            msg: "Falha na coleta de fatos"
+
+
+    - name: Backup running configuration
+      cisco.ios.ios_config:
+        backup: yes
+        save_when: always
+        backup_options:
+          filename: "{{ ansible_facts.net_hostname }}_running-config_{{ timestamp.stdout }}.txt"
+          dir_path: "./backups/{{ ansible_facts.net_hostname }}"
+      when: ansible_network_os == 'ios' # Example for Cisco IOS
+
+    - name: Create directory for SFTP user
+      ansible.builtin.file:
+        path: /home/rafaria/sftpfiles/{{ ansible_facts.net_hostname }}
+        state: directory
+      delegate_to: debian01
+
+    - name: Transfer backup to SFTP server from Ansible control node
+      ansible.builtin.copy:
+        src: "./backups/{{ ansible_facts.net_hostname }}/{{ ansible_facts.net_hostname }}_running-config_{{ timestamp.stdout }}.txt"
+        dest: "/home/rafaria/sftpfiles/{{ ansible_facts.net_hostname }}/{{ inventory_hostname }}_running-config_{{ timestamp.stdout }}.txt"
+      delegate_to: debian01
+      #when: not sftp_direct_transfer_supporte
+
+    - name: Delete a specific file
+      ansible.builtin.file:
+        path:  "./backups/{{ ansible_facts.net_hostname }}/{{ ansible_facts.net_hostname }}_running-config_{{ timestamp.stdout }}.txt"
+        state: absent
