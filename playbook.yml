@@ -3,8 +3,6 @@
 - name: Executar comando em switches Cisco
   hosts: switches
   gather_facts: false
-
-
   tasks:
     # - name: Exibir a running-config
     #   cisco.ios.ios_command:
@@ -22,9 +20,9 @@
     - block:
         - name: gather_facts
           ansible.builtin.gather_facts:
-        - name: Display hostname and OS family
+        - name: Display hostname 
           debug:
-            msg: "Hostname: {{ ansible_facts.net_hostname }}"
+            msg: "Hostname: {{ ansible_facts.net_hostname }} groups: {{ group_names[0] }}"
       rescue:
         - debug:
             msg: "Falha na coleta de fatos"
@@ -36,23 +34,28 @@
         save_when: always
         backup_options:
           filename: "{{ ansible_facts.net_hostname }}_running-config_{{ timestamp.stdout }}.txt"
-          dir_path: "./backups/{{ ansible_facts.net_hostname }}"
+          dir_path: "./backups/{{ group_names[0] }}/{{ ansible_facts.net_hostname }}"
       when: ansible_network_os == 'ios' # Example for Cisco IOS
 
     - name: Create directory for SFTP user
       ansible.builtin.file:
-        path: /home/rafaria/sftpfiles/{{ ansible_facts.net_hostname }}
+        path: /home/rafaria/sftpfiles/{{ group_names[0] }}/{{ ansible_facts.net_hostname }}
         state: directory
       delegate_to: debian01
 
-    - name: Transfer backup to SFTP server from Ansible control node
-      ansible.builtin.copy:
-        src: "./backups/{{ ansible_facts.net_hostname }}/{{ ansible_facts.net_hostname }}_running-config_{{ timestamp.stdout }}.txt"
-        dest: "/home/rafaria/sftpfiles/{{ ansible_facts.net_hostname }}/{{ inventory_hostname }}_running-config_{{ timestamp.stdout }}.txt"
-      delegate_to: debian01
-      #when: not sftp_direct_transfer_supporte
+    - block:
+        - name: Transfer backup to SFTP server from Ansible control node
+          ansible.builtin.copy:
+            src: "./backups/{{ group_names[0] }}/{{ ansible_facts.net_hostname }}/{{ ansible_facts.net_hostname }}_running-config_{{ timestamp.stdout }}.txt"
+            dest: "/home/rafaria/sftpfiles/{{ group_names[0] }}/{{ ansible_facts.net_hostname }}/{{ inventory_hostname }}_running-config_{{ timestamp.stdout }}.txt"
+          delegate_to: debian01
+      rescue:
+        - name: Delete a specific file
+          ansible.builtin.file:
+            path:  "./backups/{{ group_names[0] }}/{{ ansible_facts.net_hostname }}/{{ ansible_facts.net_hostname }}_running-config_{{ timestamp.stdout }}.txt"
+            state: absent
 
     - name: Delete a specific file
       ansible.builtin.file:
-        path:  "./backups/{{ ansible_facts.net_hostname }}/{{ ansible_facts.net_hostname }}_running-config_{{ timestamp.stdout }}.txt"
+        path:  "./backups/{{ group_names[0] }}/{{ ansible_facts.net_hostname }}/{{ ansible_facts.net_hostname }}_running-config_{{ timestamp.stdout }}.txt"
         state: absent

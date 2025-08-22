@@ -1,6 +1,9 @@
 [debian]
 debian01 ansible_host=ubnt-lab.homelab.com
 
+[debian:vars]
+ansible_user=rafaria
+
 [rocky]
 rocky01 ansible_host=rocky-lab.homelab.com
 
@@ -15,11 +18,17 @@ win-lab.homelab.com
 [servidores]
 netbox.homelab.com
 
-[switches]
+[sw1]
 192.168.110.1
 192.168.110.2
-192.168.110.3
+
+[sw2]
 192.168.110.254
+
+[switches:children]
+sw1
+sw2
+
 
 [switches:vars]
 ansible_user=admin
@@ -27,6 +36,12 @@ ansible_user=admin
 ansible_password=cisco
 ansible_connection=network_cli
 ansible_network_os=ios
+
+[tudo:children]
+switches
+servidores
+servidores-linux
+
 
 [devnet]
 devnetsandboxiosxec8k.cisco.com
