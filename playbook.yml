@@ -4,18 +4,12 @@
   hosts: switches
   gather_facts: false
   tasks:
-    # - name: Exibir a running-config
-    #   cisco.ios.ios_command:
-    #     commands: "show run"
-    #   register: show_run_output
 
-    # - name: Imprimir a saida
-    #   ansible.builtin.debug:
-    #     var: show_run_output.stdout_lines
 
     - name: Get timestamp
       ansible.builtin.command: date +%Y-%m-%d_%H-%M-%S
       register: timestamp
+      delegate_to: localhost
 
     - block:
         - name: gather_facts
@@ -23,9 +17,11 @@
         - name: Display hostname 
           debug:
             msg: "Hostname: {{ ansible_facts.net_hostname }} groups: {{ group_names[0] }}"
+          delegate_to: localhost
       rescue:
         - debug:
             msg: "Falha na coleta de fatos"
+          delegate_to: localhost
 
 
     - name: Backup running configuration
@@ -36,6 +32,7 @@
           filename: "{{ ansible_facts.net_hostname }}_running-config_{{ timestamp.stdout }}.txt"
           dir_path: "./backups/{{ group_names[0] }}/{{ ansible_facts.net_hostname }}"
       when: ansible_network_os == 'ios' # Example for Cisco IOS
+
 
     - name: Create directory for SFTP user
       ansible.builtin.file:
@@ -54,8 +51,10 @@
           ansible.builtin.file:
             path:  "./backups/{{ group_names[0] }}/{{ ansible_facts.net_hostname }}/{{ ansible_facts.net_hostname }}_running-config_{{ timestamp.stdout }}.txt"
             state: absent
+          delegate_to: localhost
 
     - name: Delete a specific file
       ansible.builtin.file:
         path:  "./backups/{{ group_names[0] }}/{{ ansible_facts.net_hostname }}/{{ ansible_facts.net_hostname }}_running-config_{{ timestamp.stdout }}.txt"
         state: absent
+      delegate_to: localhost
